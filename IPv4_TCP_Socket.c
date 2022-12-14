@@ -10,16 +10,18 @@
 
 #define SIZE_IN_BYTES 104857600
 
-//function to get the time
-char * getTime()
-{
-    time_t now = time(NULL);
-    struct tm tm_now;
-    localtime_r(&now, &tm_now);
-    char * buff = malloc(100);
-    strftime(buff, sizeof(buff), "%Y-%m-%d, time is %H:%M", &tm_now);
-    printf("Time is '%s'\n", buff);
-    return buff;
+long Etime;
+long Stime;
+
+// The function was adapted from: https://www.educba.com/clock_gettime/
+long ReturnTimeNs() {
+    struct timespec currTime;
+
+    if (clock_gettime(CLOCK_REALTIME, &currTime) == -1) {
+        perror("clock gettime");
+        return EXIT_FAILURE;
+    }
+    return currTime.tv_nsec;
 }
 
 int getCheckSum(char * file)
@@ -27,7 +29,7 @@ int getCheckSum(char * file)
     int ChSu, sum = 0;
     for (int i = 0; i < strlen(file); i++)
         sum += file[i];
-    ChSu = ~sum;    //1's complement of sum
+    ChSu=~sum;    //1's complement of sum
     return ChSu;
 }
 
@@ -46,7 +48,7 @@ void send_file(FILE * fp, int sockfd){
 }
 
 //client
-int process1(char * portNum, char * ipAddr, FILE * fp, char * Stime)
+int process1(char * portNum, char * ipAddr, FILE * fp)
 {
     printf("hiiiii\n");
 
@@ -75,23 +77,17 @@ int process1(char * portNum, char * ipAddr, FILE * fp, char * Stime)
     }
     printf("Connected with server successfully\n");
 
-    //get checksum
-      int ch = 1;
-    char buff[SIZE_IN_BYTES];
-    fread(buff, 1, SIZE_IN_BYTES, fp);
-    ch = getCheckSum(buff);
 
-    Stime = getTime();
+    Stime = ReturnTimeNs();//getTime();
     //we run in an infinite loop to always read from stdin(user)
     send_file(fp, socket_desc);
     printf("\n");
 
     close(socket_desc);
-    return ch;
 }
 
 //server
-int process2(char * portNum, char * Etime)
+int process2(char * portNum, FILE * fp)
 {
     int port = atoi(portNum);//convert the string of port from user to int
     int socket_desc, client_sock, client_size;
@@ -145,18 +141,32 @@ int process2(char * portNum, char * Etime)
             printf("Couldn't receive\n");
             return -1;
         }
+
         write(fd, client_message, SIZE_IN_BYTES);
     }
 
-    Etime = getTime();
 
-    //get checksum
+    Etime = ReturnTimeNs();//getTime();
+
+    //get checksum for process1
+    int ch1;
+    char * buff = malloc(SIZE_IN_BYTES);
+    fread(buff, 1, SIZE_IN_BYTES, fp);
+    ch1 = getCheckSum(buff);
+    free(buff);
+
+    //get checksum for process2
     char * fileRecived = malloc(SIZE_IN_BYTES);
     read(fd, fileRecived, SIZE_IN_BYTES);
-    int ch = getCheckSum(fileRecived);
+    int ch2 = getCheckSum(fileRecived);
     free(fileRecived);
     close(socket_desc);
-    return ch;
+    if(ch1 == ch2)
+    {
+        return 1;
+    }
+    else
+        return 0;
 }
 
 int main(int argc, char * argv[])
@@ -168,31 +178,28 @@ int main(int argc, char * argv[])
         exit(1);
     }
 
-    int ch1, ch2;
-    char * StartTime = malloc(100);
-    char * EndTime = malloc(100);
+    int ch;
 
     if(argc == 3)
     {
-        ch1 = process1(argv[1], argv[2], fp, StartTime);
+        process1(argv[1], argv[2], fp);
     }
     if(argc == 2)
     {
-        ch2 = process2(argv[1], EndTime);
+        ch = process2(argv[1], fp);
     }
-
+//    printf("sahgdasg%s\n", EndTime);
     //check if the 2 checksums are the same and print according to the orders
-    if(ch1 == ch2)
+    if(ch == 1)
     {
         //print time
-        printf("TCP/IPv4 Socket - Start: %s\n", StartTime);
-        printf("TCP/IPv4 Socket - End: %s\n", EndTime);
+        printf("TCP/IPv4 Socket - Start: %ld\n", Stime);
+        printf("TCP/IPv4 Socket - End: %ld\n", Etime);
     }
     else
     {
         printf("the checksums are not identical, \n -1");
     }
-    free(StartTime);
-    free(EndTime);
     return 1;
+    
 }
