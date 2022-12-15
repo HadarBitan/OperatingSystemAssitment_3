@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <time.h>
+
 #define CHUNK_SIZE 1024
 #define SIZE_IN_BYTES 104857600
 #define FILENAME "file.txt"
@@ -36,149 +37,9 @@ int getCheckSum(char * file)
     return ChSu;
 }
 
-//void send_file(FILE * fp, int sockfd, struct sockaddr_in6 servaddr){
-//    // Loop until the end of the file
-//    while (!feof(fp)) {
-//        // Read a chunk of data from the file
-//        char buffer[1024];
-//        size_t bytes_read = fread(buffer, 1, 1024, fp);
-//
-//        // Send the chunk of data to the server
-//        //sendto(sockfd, buffer, bytes_read, 0);
-//
-//        sendto(sockfd, buffer, bytes_read,
-//               0, (const struct sockaddr *) &servaddr,
-//               sizeof(servaddr));
-//
-//    }
-//    // Close the file
-//    fclose(fp);
-//}
-
-////client
-//int process1(char * portNum, char * ipAddr, FILE * fp)
-//{
-//    int sockfd;
-////    char buffer[SIZE_IN_BYTES];
-//    struct sockaddr_in6 servaddr;
-//    int port = atoi(portNum);//convert the string of port from user to int
-//
-//    // Creating socket file descriptor
-//    if ( (sockfd = socket(AF_INET6, SOCK_DGRAM, 0)) < 0 ) {
-//        perror("socket creation failed");
-//        exit(EXIT_FAILURE);
-//    }
-//
-//    memset(&servaddr, 0, sizeof(servaddr));
-//
-//    // Filling server information
-//    servaddr.sin6_family = AF_INET6;
-//    servaddr.sin6_port = htons(port);
-////    servaddr.sin6_addr= inet_addr(ipAddr);
-//    memcpy((char *)&servaddr.sin6_addr, ipAddr, strlen(ipAddr));
-//    //servaddr.sin6_addr.s6_addr = inet_addr(ipAddr);
-//    // Set up the receiver's address
-//    inet_pton(AF_INET6,  "::1", &servaddr.sin6_addr);
-//
-//
-//
-//    // int n, len;
-//    Stime = ReturnTimeNs();//getTime();
-//    send_file(fp, sockfd, servaddr);
-//    printf("file sent.\n");
-//    close(sockfd);
-//    printf("\n");
-//    return 0;
-//
-//}
-//
-////server
-//int process2(char * portNum, FILE * fp)
-//{
-//    int port = atoi(portNum);//convert the string of port from user to int
-//    int socket_desc, client_sock, client_address_size;
-//    struct sockaddr_in6 server_addr, client_addr;
-//    char * client_message;
-//
-//
-//    client_message = malloc(SIZE_IN_BYTES);
-//
-//    // Create socket:
-//    socket_desc = socket(AF_INET6, SOCK_DGRAM, 0);
-//
-//    if(socket_desc < 0){
-//        printf("Error while creating socket\n");
-//        return -1;
-//    }
-//    printf("Socket created successfully\n");
-//
-//    // Set port and IP:
-//    server_addr.sin6_family = AF_INET6;
-//    server_addr.sin6_port = htons(port);
-//    server_addr.sin6_addr= in6addr_any;//inet_addr("0.0.0.0");
-//
-//    // Bind to the set port and IP:
-//    if(bind(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr))<0){
-//        printf("Couldn't bind to the port\n");
-//        return -1;
-//    }
-//    printf("Done with binding\n");
-//    client_address_size = sizeof(client_addr);
-//
-//
-//    // Accept an incoming connection:
-//    client_address_size = sizeof(client_addr);
-//
-//    char * fullMassage = malloc(SIZE_IN_BYTES);
-//    //int fd = open("recivedFileUDP.txt", O_WRONLY | O_APPEND | O_CREAT);
-//    long i = 0, lenGot;
-//    while(i != SIZE_IN_BYTES){
-//        // Receive client's message:
-//        if((lenGot = recvfrom(socket_desc, client_message, 1024, 0, (struct sockaddr *) &client_addr,
-//                    &client_address_size)) <0)
-//        {
-//            perror("recvfrom()");
-//            exit(4);
-//        }
-//        strcat(fullMassage, client_message);
-////        write(fd, client_message, SIZE_IN_BYTES);
-//        i += lenGot;
-//    }
-//
-//
-//    Etime = ReturnTimeNs();//getTime();
-//
-//    //get checksum for process1
-//    int ch1;
-//    char * buff = malloc(SIZE_IN_BYTES);
-//    fread(buff, 1, SIZE_IN_BYTES, fp);
-//    ch1 = getCheckSum(buff);
-//    free(buff);
-//
-//    printf("ch1 = %d\n", ch1);
-//    //get checksum for process2
-//    int ch2 = getCheckSum(fullMassage);
-//    printf("ch2 = %d\n", ch2);
-////    char * fileRecived = malloc(SIZE_IN_BYTES);
-////    read(fd, fileRecived, SIZE_IN_BYTES);
-////    int ch2 = getCheckSum(fileRecived);
-////    free(fileRecived);
-//
-//    free(client_message);
-////    free(fullMassage);
-//    close(socket_desc);
-//    if(ch1 == ch2)
-//    {
-//        return 1;
-//    }
-//    else
-//        return 0;
-//}
-
 int process1(char * ipAddr)
 {
     // sender
-
     // Open a UDP socket
     int sock = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sock < 0) {
@@ -188,7 +49,6 @@ int process1(char * ipAddr)
 
     // Set up the receiver's address
     struct sockaddr_in6 receiver_addr;
-//    memset(&receiver_addr, 0, sizeof(receiver_addr));
     receiver_addr.sin6_family = AF_INET6;
     receiver_addr.sin6_port = htons(RECEIVER_PORT);
     inet_pton(AF_INET6, ipAddr, &receiver_addr.sin6_addr);
@@ -218,6 +78,10 @@ int process1(char * ipAddr)
 
         // If we reached the end of the file, break out of the loop
         if (bytes_read == 0) {
+            strcpy(buffer, "by");
+            // Send the chunk to the receiver
+            sendto(sock, buffer, strlen(buffer), 0,
+                                        (struct sockaddr*)&receiver_addr, sizeof(receiver_addr));
             break;
         }
 
@@ -231,7 +95,6 @@ int process1(char * ipAddr)
         }
         bytesTot += bytes_sent;
     }
-    printf("bytes: %d\n", (int)bytesTot);
     printf("file sent.\n");
 
     // Close the socket and file
@@ -283,41 +146,20 @@ int process2()
             exit(1);
         }
 
-        totbytes += bytes_received;
-        // If we received 0 bytes, it means the sender has finished sending
-        // the file and we can break out of the loop
-        if (totbytes == SIZE_IN_BYTES) {
+        if (strcmp(buffer, "by") == 0) {
             break;
         }
 
-        // Write the received chunk to the file
-//        size_t bytes_written = fwrite(buffer, 1, bytes_received, fp);
-//        if (bytes_written < 0) {
-//            perror("fwrite");
-//            exit(1);
-//        }
+        totbytes += bytes_received;
+        // If we received 0 bytes, it means the sender has finished sending
+        // the file and we can break out of the loop
         strcat(fullMassage, buffer);
     }
-
-    printf("bytes recived: %d\n", (int)totbytes);
 
     printf("file recived\n");
     //take time
     Etime = ReturnTimeNs();//getTime();
 
-    //get checksum for process2
-    int ch2 = getCheckSum(fullMassage);
-    printf("ch2 = %d\n", ch2);
-    free(fullMassage);
-
-// Close the socket and file
-    close(sock);
-    return ch2;
-}
-
-int main(int argc, char * argv[])
-{
-    int ch1, ch2;
     //get checksum for process1
     //open the file to be received
     int fd = open(FILENAME, O_RDONLY);
@@ -328,8 +170,25 @@ int main(int argc, char * argv[])
 
     char * buff = malloc(SIZE_IN_BYTES);
     read(fd, buff, SIZE_IN_BYTES);
-    ch1 = getCheckSum(buff);
+    int ch1 = getCheckSum(buff);
     free(buff);
+
+    //get checksum for process2
+    int ch2 = getCheckSum(fullMassage);
+    free(fullMassage);
+
+// Close the socket and file
+    close(sock);
+    if(ch1 == ch2)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+int main(int argc, char * argv[])
+{
+    int ch;//, ch2;
 
     if(argc == 2)
     {
@@ -337,21 +196,19 @@ int main(int argc, char * argv[])
     }
     if(argc == 1)
     {
-        ch2 = process2();
-    }
-    //check if the 2 checksums are the same and print according to the orders
-    printf("ch1 = %d\n", ch1);
-    printf("ch2 = %d\n", ch2);
+        ch = process2();
+        //check if the 2 checksums are the same and print according to the orders
+        if(ch == 1)
+        {
+            //print time
+            printf("UDP/IPv6 Socket - Start: %ld\n", Stime);
+            printf("UDP/IPv6 Socket - End: %ld\n", Etime);
+        }
+        else
+        {
+            printf("the checksums are not identical, \n -1\n");
+        }
 
-    if(ch1 == ch2)
-    {
-        //print time
-        printf("UDP/IPv6 Socket - Start: %ld\n", Stime);
-        printf("UDP/IPv6 Socket - End: %ld\n", Etime);
-    }
-    else
-    {
-        printf("the checksums are not identical, \n -1\n");
     }
     return 1;
 
