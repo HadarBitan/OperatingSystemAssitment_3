@@ -682,8 +682,8 @@ void * threadFunction(char* data)
     checksumDifference = ~sumR;
 
     if (checksumDifference == checksumS) {
-        printf("\nshared memory between threads - Start: %ld\\n",Starttime);
-        printf("\nshared memory between threads - End: %ld\\n",Endtime);
+        printf("\nshared memory between threads - Start: %ld\n",Starttime);
+        printf("\nshared memory between threads - End: %ld\n",Endtime);
     }
     else {
         printf("\nthe checksums are not identical,\n-1\n");
