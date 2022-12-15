@@ -50,8 +50,6 @@ void send_file(FILE * fp, int sockfd){
 //client
 int process1(char * portNum, char * ipAddr, FILE * fp)
 {
-    printf("hiiiii\n");
-
     int port = atoi(portNum);//convert the string of port from user to int
     int socket_desc;
     struct sockaddr_in server_addr;
