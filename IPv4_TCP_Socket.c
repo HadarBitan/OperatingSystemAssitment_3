@@ -48,7 +48,7 @@ void send_file(FILE * fp, int sockfd){
 }
 
 //client
-int process1(char * portNum, char * ipAddr, FILE * fp)
+int process1TCP(char * portNum, char * ipAddr, FILE * fp)
 {
     int port = atoi(portNum);//convert the string of port from user to int
     int socket_desc;
@@ -85,7 +85,7 @@ int process1(char * portNum, char * ipAddr, FILE * fp)
 }
 
 //server
-int process2(char * portNum, FILE * fp)
+int process2TCP(char * portNum, FILE * fp)
 {
     int port = atoi(portNum);//convert the string of port from user to int
     int socket_desc, client_sock, client_size;
@@ -161,10 +161,11 @@ int process2(char * portNum, FILE * fp)
     close(socket_desc);
     if(ch1 == ch2)
     {
-        return 1;
+        printf("TCP/IPv4 Socket - Start: %ld\n", Stime);
+        printf("TCP/IPv4 Socket - End: %ld\n", Etime);
     }
     else
-        return 0;
+        printf("the checksums are not identical, \n -1");
 }
 
 int main(int argc, char * argv[])

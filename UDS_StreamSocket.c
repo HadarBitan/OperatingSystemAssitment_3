@@ -122,7 +122,8 @@ void UDS_Stream_Sender() {
         //Close the sockets and exit
         close(server_sock);
         close(client_sock);
-    }}
+    }
+}
 
 void UDS_Stream_Receiver() {
     int client_sock, rc, len;

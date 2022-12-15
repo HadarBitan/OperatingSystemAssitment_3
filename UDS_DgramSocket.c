@@ -86,7 +86,8 @@ void UDS_Dgram_Sender() {
         // Close the socket and exit
 
         rc = close(client_socket);
-    }}
+    }
+}
 
 void UDS_Dgram_Receiver() {
     int server_sock, len, rc;
@@ -155,7 +156,9 @@ void UDS_Dgram_Receiver() {
 
 
         close(server_sock);
-    }}
+    }
+}
+
 int main() {
     if (fork() == 0) {
         UDS_Dgram_Sender();
