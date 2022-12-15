@@ -13,13 +13,10 @@ FLAGS = -Wall -g
 run: main
 	./main
 
-all: main utils
+all: main
 
 main: main.o
 	$(CC) -pthread -o main main.c $(FLAGS)
-
-utils: utils.o
-	$(CC) -pthread -o utils utils.c $(FLAGS)
 
 .PHONY: clean all
 
