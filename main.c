@@ -214,7 +214,7 @@ int process1UDP()
 
     // Set up the receiver's address
     struct sockaddr_in6 receiver_addr;
-//    memset(&receiver_addr, 0, sizeof(receiver_addr));
+
     receiver_addr.sin6_family = AF_INET6;
     receiver_addr.sin6_port = htons(RECEIVER_PORT);
     inet_pton(AF_INET6, IPADDR_UDP, &receiver_addr.sin6_addr);
