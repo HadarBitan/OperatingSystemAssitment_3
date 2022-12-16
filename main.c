@@ -18,7 +18,8 @@
 #define SIZE_IN_BYTES 104857600
 #define CHUNK_SIZE 1024
 #define FILENAME "file.txt"
-#define RECEIVER_PORT 2001
+#define TCP_PORT 20001
+#define UDP_PORT 8080
 #define IPADDR_TCP "127.0.0.1"
 #define IPADDR_UDP "::1"
 #define SERVER_PATH "tpf_unix_sock.server"
@@ -26,8 +27,8 @@
 #define SERVER_PATH_DGRAM "tpf_unix_sock.server_Dgram"
 
 
-long Endtime;
-long Starttime;
+long Endtime, EndtimeUDP, EndtimeTCP;
+long Starttime, StarttimeUDP, StarttimeTCP;
 
 long ReturnTimeNs() {
     struct timespec currTime;
@@ -41,10 +42,10 @@ long ReturnTimeNs() {
 
 int getCheckSum(char * file)
 {
-    int ChSu, sum = 0;
-    for (int i = 0; i < strlen(file); i++)
+    int ChSu, sum = 0, i;
+    for (i = 0; i < SIZE_IN_BYTES; i++)
         sum += file[i];
-    ChSu=~sum;    //1's complement of sum
+    ChSu =~ sum;    //1's complement of sum
     return ChSu;
 }
 
@@ -53,14 +54,7 @@ void send_file(FILE * fp, int sockfd){
     while (!feof(fp)) {
         // Read a chunk of data from the file
         char buffer[1024];
-        size_t bytes_read = fread(buffer, 1, 1024, fp);
-
-        if (bytes_read == 0) {
-            strcpy(buffer, "by");
-            // Send the chunk to the receiver
-            send(sockfd, buffer, bytes_read, 0);
-            break;
-        }
+        size_t bytes_read = fread(buffer, 1, CHUNK_SIZE, fp);
 
         // Send the chunk of data to the server
         send(sockfd, buffer, bytes_read, 0);
@@ -78,7 +72,7 @@ int process1TCP()
         exit(1);
     }
 
-    int port = RECEIVER_PORT;//convert the string of port from user to int
+    int port = TCP_PORT;//convert the string of port from user to int
     int socket_desc;
     struct sockaddr_in server_addr;
 
@@ -96,13 +90,12 @@ int process1TCP()
     server_addr.sin_addr.s_addr = inet_addr(IPADDR_TCP);
 
     // Send connection request to server:
-    if(connect(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0){
-        printf("Unable to connect\n");
-        return -1;
+    while(connect(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0){
+        continue;
     }
 
 
-    Starttime = ReturnTimeNs();//getTime();
+    StarttimeTCP = ReturnTimeNs();//getTime();
     //we run in an infinite loop to always read from stdin(user)
     send_file(fp, socket_desc);
     printf("\n");
@@ -112,12 +105,12 @@ int process1TCP()
 
 int process2TCP()
 {
-    int port = RECEIVER_PORT;//convert the string of port from user to int
+    int port = TCP_PORT;//convert the string of port from user to int
     int socket_desc, client_sock, client_size;
     struct sockaddr_in server_addr, client_addr;
     char * client_message;
 
-    client_message = malloc(SIZE_IN_BYTES);
+    client_message = malloc(CHUNK_SIZE);
 
     // Create socket:
     socket_desc = socket(AF_INET, SOCK_STREAM, 0);
@@ -153,27 +146,26 @@ int process2TCP()
         return -1;
     }
 
-    char * fullMassage = malloc(SIZE_IN_BYTES);
-    while (1) {
+    char * filerecived = malloc(SIZE_IN_BYTES);
+    int totbytes = 0, sum = 0;
+    ssize_t recv_bytes;
+    while (totbytes < SIZE_IN_BYTES) {
         // Receive a chunk from the sender
-        char buffer[CHUNK_SIZE];
+//        char buffer[CHUNK_SIZE];
         struct sockaddr_in6 sender_addr;
         socklen_t addrlen = sizeof(sender_addr);
-        if (recv(client_sock, client_message, sizeof(client_message), 0) < 0) {
+        if ((recv_bytes = recv(client_sock, client_message, CHUNK_SIZE, 0)) < 0) {
             printf("Couldn't receive\n");
             return -1;
         }
-
-        if (strcmp(buffer, "by") == 0) {
-            break;
-        }
-
+        totbytes += (int)recv_bytes;
         // If we received 0 bytes, it means the sender has finished sending
         // the file and we can break out of the loop
-        strcat(fullMassage, buffer);
+        strcat(filerecived, client_message);
     }
 
-    Endtime = ReturnTimeNs();//get time
+
+    EndtimeTCP = ReturnTimeNs();//get time
 
     //get checksum for process1
     int ch1;
@@ -189,16 +181,17 @@ int process2TCP()
     free(buff);
 
     //get checksum for process2
-    int ch2 = getCheckSum(fullMassage);
+    int ch2 = getCheckSum(filerecived);
+
     close(socket_desc);
     if(ch1 == ch2)
     {
-        printf("TCP/IPv4 Socket - Start: %ld\n", Starttime);
-        printf("TCP/IPv4 Socket - End: %ld\n", Endtime);
+        printf("TCP/IPv4 Socket - Start: %ld\n", StarttimeTCP);
+        printf("TCP/IPv4 Socket - End: %ld\n", EndtimeTCP);
     }
     else
-        printf("the checksums are not identical, \n -1");
-    free(fullMassage);
+        printf("tcp the checksums are not identical, \n -1\n");
+    free(filerecived);
 }
 
 int process1UDP()
@@ -216,7 +209,7 @@ int process1UDP()
     struct sockaddr_in6 receiver_addr;
 
     receiver_addr.sin6_family = AF_INET6;
-    receiver_addr.sin6_port = htons(RECEIVER_PORT);
+    receiver_addr.sin6_port = htons(UDP_PORT);
     inet_pton(AF_INET6, IPADDR_UDP, &receiver_addr.sin6_addr);
 
     // Open the file to be sent
@@ -233,7 +226,7 @@ int process1UDP()
         exit(1);
     }
 
-    Starttime = ReturnTimeNs();//getTime();
+    StarttimeUDP = ReturnTimeNs();//getTime();
     ssize_t bytes_read;
     ssize_t bytesTot = 0;
     // Send the file in chunks
@@ -282,7 +275,7 @@ int process2UDP()
     struct sockaddr_in6 local_addr;
     memset(&local_addr, 0, sizeof(local_addr));
     local_addr.sin6_family = AF_INET6;
-    local_addr.sin6_port = htons(RECEIVER_PORT);
+    local_addr.sin6_port = htons(UDP_PORT);
     local_addr.sin6_addr = in6addr_any;
 
     if (bind(sock, (struct sockaddr*)&local_addr, sizeof(local_addr)) < 0) {
@@ -291,7 +284,7 @@ int process2UDP()
     }
 
 
-    char * fullMassage = malloc(SIZE_IN_BYTES);
+    char * filerecived = malloc(SIZE_IN_BYTES);
     ssize_t totbytes = 0;
     // Receive the file in chunks
     while (1) {
@@ -314,10 +307,10 @@ int process2UDP()
         totbytes += bytes_received;
         // If we received 0 bytes, it means the sender has finished sending
         // the file and we can break out of the loop
-        strcat(fullMassage, buffer);
+        strcat(filerecived, buffer);
     }
     //take time
-    Endtime = ReturnTimeNs();//getTime();
+    EndtimeUDP = ReturnTimeNs();//getTime();
 
     //get checksum for process1
     //open the file to be received
@@ -333,18 +326,19 @@ int process2UDP()
     free(buff);
 
     //get checksum for process2
-    int ch2 = getCheckSum(fullMassage);
-    free(fullMassage);
+    int ch2 = getCheckSum(filerecived);
+    free(filerecived);
 
     // Close the socket and file
     close(sock);
     if(ch1 == ch2)
     {
         //print time
-        printf("UDP/IPv6 Socket - Start: %ld\n", Starttime);
-        printf("UDP/IPv6 Socket - End: %ld\n", Endtime);
+        printf("UDP/IPv6 Socket - Start: %ld\n", StarttimeUDP);
+        printf("UDP/IPv6 Socket - End: %ld\n", EndtimeUDP);
     }
-    printf("the checksums are not identical, \n -1\n");
+    else
+        printf("udp the checksums are not identical, \n -1\n");
     return 0;
 }
 
@@ -423,7 +417,7 @@ void UDS_Stream_process1() {
 
         //Take time before send
         Starttime = ReturnTimeNs();
-        printf("UDS-Stream - Start: %ld\n", Starttime);
+        printf("UDS-Stream - Start: %ld\n", ReturnTimeNs());
 
 
         for (int i = 0; i < SIZE_IN_BYTES / 1024; i++) {
@@ -526,7 +520,7 @@ void UDS_Stream_process2() {
         if (checksumReceived != 0) {
             Endtime = -1;
         }
-        printf("UDS-Stream - End: %ld\n", Endtime);
+        printf("UDS-Stream - End: %ld\n", ReturnTimeNs());
 
         // Close the socket and exit.
         close(client_sock);
@@ -549,7 +543,7 @@ void UDS_Dgram_process1() {
 
         //Take time before send
         Starttime = ReturnTimeNs();
-        printf("UDS-Stream - Start: %ld\n", Starttime);
+        printf("UDS-Dgram - Start: %ld\n", ReturnTimeNs());
         int checksum, sum = 0, i;
         for (i = 0; i < SIZE_IN_BYTES; i++)
             sum += data[i];
@@ -658,7 +652,7 @@ void UDS_Dgram_process2() {
         if (checksumReceived != 0) {
             Endtime = -1;
         }
-        printf("UDS-Datagram - End: %ld\n", Endtime);
+        printf("UDS-Datagram - End: %ld\n", ReturnTimeNs());
 
         close(server_sock);
     }
@@ -682,11 +676,11 @@ void * threadFunction(char* data)
     checksumDifference = ~sumR;
 
     if (checksumDifference == checksumS) {
-        printf("\nshared memory between threads - Start: %ld\n",Starttime);
-        printf("\nshared memory between threads - End: %ld\n",Endtime);
+        printf("shared memory between threads - Start: %ld\n",Starttime);
+        printf("shared memory between threads - End: %ld\n",Endtime);
     }
     else {
-        printf("\nthe checksums are not identical,\n-1\n");
+        printf("shared memory the checksums are not identical,\n-1\n");
     }
 }
 
@@ -739,7 +733,7 @@ void pipeConnection() {
         int checksumComparison = getCheckSum(read_msg);//compare tow cheksums
 
         if (senderChecksum != checksumComparison) {//if the checksums are the same
-            printf("the checksums are not identical, \n -1\n");
+            printf("pipe the checksums are not identical, \n -1\n");
         } else {
             printf("PIPE connection - End: %ld\n", ReturnTimeNs());
         }
@@ -769,7 +763,7 @@ void mmapConnection()
             printf("Error\n");
         }
         Starttime = ReturnTimeNs();
-        printf("MMAP connection - Start: %ld\n", Starttime);
+        printf("MMAP connection - Start: %ld\n", ReturnTimeNs());
         strcpy(pmap, data); //copying data to new shared file
 
         if (fork() == 0) {
@@ -787,9 +781,9 @@ void mmapConnection()
             checksumReciver = ~sum;
             Endtime = ReturnTimeNs();
             if (checksumReciver != 0) {
-                printf("the checksums are not identical, \n -1\n");
+                printf("mmap the checksums are not identical, \n -1\n");
             } else {
-                printf("MMAP connection - Start: %ld\n", Endtime);
+                printf("MMAP connection - End: %ld\n", ReturnTimeNs());
             }
         } else {
             wait(NULL);
@@ -872,6 +866,6 @@ int main(int argc, char * argv[]) {
         }
         wait(NULL);
     }
-
+    wait(NULL);
     return 1;
 }
